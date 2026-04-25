@@ -33,3 +33,17 @@ ENV/
 
 # Logs
 *.log
+
+# MS3: working files not part of the deliverable
+MS3/CONTRIBUTION_OPTIONS.md
+MS3/README.md
+MS3/CS209B_ms3_artifacts.zip
+MS3/CS209B_ms3_artifacts/
+MS3/MS3/CS209_Milestone3_Slides.pptx
+MS3/MS3/CS209_Milestone3_Slides_v2.pptx
+MS3/MS3/Milestone 3 Deliverables.xlsx
+MS3/MS3/slide_charts/
+MS3/MS3/~$*
+
+# MS3: trained model checkpoints (too large for GitHub, regenerate from notebook)
+MS3/artifacts/models/*.pt
