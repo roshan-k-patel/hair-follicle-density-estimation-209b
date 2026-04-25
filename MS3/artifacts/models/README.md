@@ -1,25 +1,13 @@
 # Trained model checkpoints
 
-This directory holds the trained PyTorch checkpoints for the MS3 two-stage
-baseline. The checkpoints themselves are **not committed to git** because they
-exceed GitHub's 100 MB per-file limit.
+This directory holds trained PyTorch checkpoints, organized by architecture.
 
-Two files belong here:
+- `cnn/` — Two-stage CNN baseline (Yafan's MS3 work). Contains the box
+  regressor and the follicle classifier. Used by the density head in MS3.
+- `detr/` — DETR baseline (placeholder for MS4). Currently empty. Will hold
+  the fine-tuned `facebook/detr-resnet-50` checkpoint when the work on the
+  `feature/DERT` branch is integrated into `main`.
 
-- `best_box_regressor.pt` (~130 MB) — best epoch of the ResNet18 box regressor
-- `best_label_classifier.pt` (~130 MB) — best epoch of the ResNet18 follicle
-  classifier
-
-## How to obtain them
-
-**Option 1: regenerate by running the notebook.** Open `MS3/ms3.ipynb`, set
-`USE_EXISTING_CHECKPOINTS = False` in the config cell, and run all cells. The
-training cells will write fresh checkpoints to this directory. On an H100 the
-full training takes about 10 minutes; on M4 MPS expect 45–90 minutes.
-
-**Option 2: drop in pre-trained checkpoints.** If a teammate already has the
-checkpoints from a previous run, copy them into this directory. The notebook
-will detect them and skip retraining when `USE_EXISTING_CHECKPOINTS = True`.
-
-The corresponding training-history pickles (which carry the per-epoch metrics)
-live in `../history/` and are committed.
+Checkpoint files (`*.pt`) are not committed to git because they exceed
+GitHub's 100 MB per-file limit. See the README in each subdirectory for how
+to obtain or regenerate them.

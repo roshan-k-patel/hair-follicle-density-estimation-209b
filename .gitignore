@@ -46,4 +46,4 @@ MS3/MS3/slide_charts/
 MS3/MS3/~$*
 
 # MS3: trained model checkpoints (too large for GitHub, regenerate from notebook)
-MS3/artifacts/models/*.pt
+MS3/artifacts/models/**/*.pt
