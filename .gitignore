@@ -33,3 +33,6 @@ ENV/
 
 # Logs
 *.log
+
+# MS4 local model checkpoints (DETR fine-tunes ~170 MB each)
+MS4/checkpoints/
