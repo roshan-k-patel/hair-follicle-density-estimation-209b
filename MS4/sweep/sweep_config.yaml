@@ -1,0 +1,100 @@
+# W&B Bayesian sweep for MS4 DETR
+#
+# 9 hyperparameters in 3 diagnostic groups (optimization / loss balance /
+# augmentation). num_queries=100 and box_scale=1.2/1.2 are pinned because we
+# already verified they're load-bearing (5-epoch experiments earlier today).
+#
+# Per-trial budget: 5 epochs (num_train_epochs=5, batch_size=2, grad_accum=4
+# on the 991-image train set). About 25 min on M4 Pro MPS without Hyperband,
+# ~15 min average with Hyperband killing weak runs at epoch 2.
+#
+# Launch:
+#     cd MS4/sweep/
+#     wandb sweep sweep_config.yaml
+#     # Returns a sweep ID. Then:
+#     wandb agent <ENTITY/PROJECT/SWEEP_ID>
+
+method: bayes
+
+metric:
+  name: eval_loss
+  goal: minimize
+
+# Hyperband early-stopping: trials in the bottom third get killed at epoch 2,
+# saving ~30% of total wall time vs running every trial to completion.
+early_terminate:
+  type: hyperband
+  min_iter: 2
+  eta: 3
+
+program: train_detr_sweep.py
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+
+parameters:
+  # ---------- Group 1: Optimization dynamics ----------
+  learning_rate:
+    distribution: log_uniform_values
+    min: 0.000003          # 3e-6
+    max: 0.00003           # 3e-5; capped well below 1e-4 (which failed in our experiments)
+
+  weight_decay:
+    distribution: log_uniform_values
+    min: 0.00001           # 1e-5
+    max: 0.01              # 1e-2; current 1e-4 may be undertuned for 991 images
+
+  warmup_steps:
+    distribution: int_uniform
+    min: 100
+    max: 1500              # current 500
+
+  # ---------- Group 2: Loss component balance ----------
+  bbox_loss_coefficient:
+    distribution: int_uniform
+    min: 3
+    max: 12                # Yosef's 8 vs DETR paper's 5
+
+  giou_loss_coefficient:
+    distribution: int_uniform
+    min: 1
+    max: 6                 # Yosef's 4 vs paper's 2
+
+  eos_coefficient:
+    distribution: uniform
+    min: 0.05
+    max: 0.5               # never tuned; HF default 0.1
+
+  alpha_cls:
+    distribution: uniform
+    min: 0.0
+    max: 2.0               # 0 disables matched-CE add-on; 1.0 was Yosef's
+
+  # ---------- Group 3: Data diversity (augmentation) ----------
+  p_vflip:
+    distribution: uniform
+    min: 0.0
+    max: 0.5               # follicle shafts have anatomical orientation; 0 may help
+
+  aug_strength:
+    distribution: uniform
+    min: 0.5
+    max: 1.5               # multiplier on rotate/brightness/CLAHE/sharpen/gauss noise probabilities
+
+  # ---------- Pinned (not searched) ----------
+  num_queries:
+    value: 100             # 50 collapsed the model in earlier experiments
+  train_box_scale:
+    value: 1.2
+  val_box_scale:
+    value: 1.2             # mismatched train/val killed performance
+  per_device_train_batch_size:
+    value: 2
+  gradient_accumulation_steps:
+    value: 4
+  num_train_epochs:
+    value: 5
+  p_copy_paste:
+    value: 0.0             # reserved for Group 4; currently no-op
