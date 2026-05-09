@@ -36,3 +36,10 @@ ENV/
 
 # MS4 local model checkpoints (DETR fine-tunes ~170 MB each)
 MS4/checkpoints/
+
+# HF Trainer output_dir scratch (created at runtime when running notebooks)
+MS4/detr_voc_finetuned/
+MS4/conditional_detr_voc_finetuned/
+
+# Scratch experiment notebooks (W&B sweep outputs, smoke tests, etc.)
+MS4/_*.ipynb
