@@ -22,11 +22,11 @@ from ultralytics import YOLO
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
 ROOT = "/home/ubuntu/hair-follicle-density-estimation-209b"
-YOLO_PT = f"{ROOT}/MS4/checkpoints/yolo_sweep_winner_runs/yolo_sweep_winner_baseline_50ep/weights/best.pt"
+YOLO_PT = f"{ROOT}/MS4/yolo_runs/tuned_basic/weights/best.pt"
 DETR_DIR = "/home/ubuntu/detr_aug4"
 VAL_IMG_DIR = "/tmp/yolo_follicle_dataset_baseline/images/val"
 VAL_LBL_DIR = "/tmp/yolo_follicle_dataset_baseline/labels/val"
-OUT_DIR = f"{ROOT}/MS4/checkpoints/yolo_sweep_winner_runs/detr_vs_yolo_examples"
+OUT_DIR = f"{ROOT}/MS4/comparisons/detr_vs_yolo"
 
 CLASS_NAMES = ["premium", "single", "undersize", "abnormal"]
 
