@@ -1,0 +1,102 @@
+# W&B Bayesian sweep for MS4 YOLO11m
+#
+# Targets metrics/mAP50(B) (Ultralytics' Box mAP at IoU=0.5) and maximizes it.
+# This directly addresses the deployment metric without the loss-vs-mAP
+# decoupling issue we hit on the DETR sweep.
+#
+# 8 hyperparameters searched in 3 groups:
+#   - Optimization:  lr0, weight_decay
+#   - Loss balance:  box, cls, dfl (Ultralytics' loss coefficients)
+#   - Augmentation:  mosaic, copy_paste, close_mosaic
+#
+# Per-trial budget: 20 epochs (val mAP plateaus around epoch 17-20 on this
+# data, as observed in Yosef's 50-epoch run). On Lambda Cloud A100 each
+# trial is ~12-15 min. With Hyperband killing weak runs at epoch 5,
+# 25 trials in ~4-5 hours.
+#
+# Launch:
+#     cd MS4/sweep/
+#     wandb sweep sweep_config_yolo.yaml
+#     # Returns a sweep ID. Then:
+#     wandb agent --count 25 <ENTITY/PROJECT/SWEEP_ID>
+
+method: bayes
+
+# OPTIMIZATION TARGET: maximize Ultralytics' built-in Box mAP50.
+# Ultralytics auto-logs this to W&B as metrics/mAP50(B) when wandb is
+# installed and a sweep is active.
+metric:
+  name: metrics/mAP50(B)
+  goal: maximize
+
+# Hyperband early-stopping: kill trials in the bottom third by epoch-5
+# mAP50, saving ~30% of total compute.
+early_terminate:
+  type: hyperband
+  min_iter: 5
+  eta: 3
+
+program: train_yolo_sweep.py
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+
+parameters:
+  # ---------- Group 1: Optimization dynamics ----------
+  lr0:
+    distribution: log_uniform_values
+    min: 0.0001            # 1e-4
+    max: 0.001             # 1e-3 -- Yosef used 3e-4, exploring around
+
+  weight_decay:
+    distribution: log_uniform_values
+    min: 0.00001           # 1e-5
+    max: 0.001             # 1e-3 -- Yosef used 5e-4
+
+  # ---------- Group 2: Loss component balance ----------
+  box:
+    distribution: int_uniform
+    min: 5
+    max: 12                # Yosef used 9; Ultralytics default 7.5
+
+  cls:
+    distribution: uniform
+    min: 0.5
+    max: 2.0               # Yosef used 1.0-1.2
+
+  dfl:
+    distribution: uniform
+    min: 1.0
+    max: 3.0               # Yosef used 2.0; Ultralytics default 1.5
+
+  # ---------- Group 3: Data augmentation ----------
+  mosaic:
+    distribution: uniform
+    min: 0.0
+    max: 0.5               # Yosef used 0.1; default 1.0 is too aggressive for small dataset
+
+  copy_paste:
+    distribution: uniform
+    min: 0.0
+    max: 0.3               # Yosef used 0 (baseline) / 0.1 (enhanced)
+
+  close_mosaic:
+    distribution: int_uniform
+    min: 10
+    max: 30                # Number of final epochs with mosaic disabled (Yosef: 20)
+
+  # ---------- Pinned (not searched) ----------
+  imgsz:
+    value: 1024
+  batch:
+    value: 8
+  epochs:
+    value: 20              # val mAP plateaus around epoch 17-20 on this data
+  optimizer:
+    value: AdamW
+  patience:
+    value: 15              # disabled effectively at 20 epochs
+  seed:
+    value: 42
