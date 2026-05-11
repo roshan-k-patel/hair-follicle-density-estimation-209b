@@ -1,0 +1,110 @@
+# W&B Bayesian sweep for MS4 Conditional DETR
+#
+# Key fix vs the DETR sweep: this targets eval/map_50 (the deployment metric)
+# instead of eval_loss (a surrogate). The DETR sweep's loss-vs-mAP decoupling
+# motivated this change. The MAPLoggerCallback in train_conditional_detr_sweep.py
+# logs eval/map_50 at the end of each epoch.
+#
+# 9 hyperparameters in 3 diagnostic groups (optimization / loss balance /
+# augmentation). num_queries=100 and box_scale=1.2/1.2 are pinned because
+# they were validated independently in earlier 5-epoch DETR experiments.
+#
+# Per-trial budget: 5 epochs (num_train_epochs=5, batch_size=2, grad_accum=4
+# on the 991-image train set). On Colab Pro A100 each trial is ~10-15 min.
+# Add ~30 seconds per epoch for the per-epoch mAP eval. With Hyperband
+# killing weak runs at epoch 2, ~30 trials in ~6-9 hours.
+#
+# Launch:
+#     cd MS4/sweep/
+#     wandb sweep sweep_config_conditional.yaml
+#     # Returns a sweep ID. Then:
+#     wandb agent <ENTITY/PROJECT/SWEEP_ID>
+
+method: bayes
+
+# OPTIMIZATION TARGET: eval/map_50 (NOT eval_loss).
+# The MAPLoggerCallback in the trial script logs this metric at the end of
+# each epoch using torchmetrics MeanAveragePrecision with per-class NMS.
+metric:
+  name: eval/map_50
+  goal: maximize
+
+# Hyperband early-stopping: kill trials in the bottom third by epoch-2 map_50.
+early_terminate:
+  type: hyperband
+  min_iter: 2
+  eta: 3
+
+program: train_conditional_detr_sweep.py
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+
+parameters:
+  # ---------- Group 1: Optimization dynamics ----------
+  learning_rate:
+    distribution: log_uniform_values
+    min: 0.000003          # 3e-6
+    max: 0.00005           # 5e-5; broader than DETR sweep (which capped at 3e-5)
+
+  weight_decay:
+    distribution: log_uniform_values
+    min: 0.00001           # 1e-5
+    max: 0.01              # 1e-2
+
+  warmup_steps:
+    distribution: int_uniform
+    min: 100
+    max: 1500
+
+  # ---------- Group 2: Loss component balance ----------
+  bbox_loss_coefficient:
+    distribution: int_uniform
+    min: 3
+    max: 12                # DETR sweep showed high values minimize loss but may hurt mAP --
+                           # full range here, mAP target will sort it out
+
+  giou_loss_coefficient:
+    distribution: int_uniform
+    min: 1
+    max: 6
+
+  # Conditional DETR uses sigmoid focal loss for classification (no
+  # eos_coefficient / matched-CE add-on). focal_alpha controls the focal
+  # loss's class-imbalance handling; default is 0.25.
+  focal_alpha:
+    distribution: uniform
+    min: 0.1
+    max: 0.75
+
+  cls_loss_coefficient:
+    distribution: int_uniform
+    min: 1
+    max: 5
+
+  # ---------- Group 3: Data diversity (augmentation) ----------
+  p_vflip:
+    distribution: uniform
+    min: 0.0
+    max: 0.5
+
+  aug_strength:
+    distribution: uniform
+    min: 0.5
+    max: 1.5
+
+  # ---------- Pinned (not searched) ----------
+  num_queries:
+    value: 100
+  train_box_scale:
+    value: 1.2
+  val_box_scale:
+    value: 1.2
+  per_device_train_batch_size:
+    value: 2
+  gradient_accumulation_steps:
+    value: 4
+  num_train_epochs:
+    value: 5

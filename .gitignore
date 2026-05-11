@@ -46,3 +46,6 @@ MS4/_*.ipynb
 
 # W&B sweep run outputs (per-trial logs, configs, metrics)
 MS4/sweep/wandb/
+
+# W&B notebook run outputs (when running MS4_Conditional_DETR.ipynb locally)
+MS4/wandb/
